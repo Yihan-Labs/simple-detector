@@ -152,17 +152,6 @@ void optimaN(EndcapConfiguration& config) {
         double steplength = thread_config.getStepLength();
         thread_config.setStepLength(steplength * 2);
         threads.emplace_back(threadWorker, i, std::move(thread_config));
-
-        int testing = 1;
-        for(int d = 1; d <= N_species-1 && testing; d++) {
-            double step = thread_config.getStepLength();
-            double L1offset = 0;
-            double L2offset = 0;
-        
-            L2offset += step/2 * intToBinary(i, (d * 2) - 1);
-            L1offset += step/2 * intToBinary(i, (d * 2));
-            printf(" %.1f %.1f ", L2offset, L1offset);
-        } std::cout << std::endl;
     }
 
     // Join threads

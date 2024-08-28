@@ -12,10 +12,10 @@ ROOTLIBS = $(shell root-config --libs)
 TARGET = runOptimization
 
 # Source files
-SOURCES = EndcapConfiguration.C runOptimization.C PolygonUtils.C
+SOURCES = EndcapConfiguration.cpp runOptimization.cpp PolygonUtils.cpp
 
 # Object files
-OBJECTS = $(SOURCES:.C=.o)
+OBJECTS = $(SOURCES:.cpp=.o)
 
 # Default target
 all: $(TARGET)
@@ -24,7 +24,7 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o $@ $^ $(ROOTLIBS)
 
-# Generic rule for compiling .C to .o
+# Generic rule for compiling .cpp to .o
 %.o: %.C
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c $< -o $@
 
