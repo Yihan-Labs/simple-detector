@@ -49,7 +49,7 @@ void EndcapConfiguration::initializeDefaultValues() {
 }
 
 // buildRadius returns 1 if build success.
-int EndcapConfiguration::buildRadius() {
+int EndcapConfiguration::buildRadius(double step) {
     // First, calculate all radii
     for (int i = 0; i < N_rings; i++) {
         radius[i][0] = PolygonUtils::CircumscribedRadius(L1[types[i]], npoly[i]);
@@ -59,7 +59,7 @@ int EndcapConfiguration::buildRadius() {
     // Now, determine Hr for each sensor type
     for (int type = 0; type < N_species; type++) {
         bool foundValidHr = false;
-        for (double h = Hreal_min; h <= Hreal_max; h += step_length) {
+        for (double h = Hreal_min; h <= Hreal_max; h += step) {
             bool validForAllRings = true;
             
             // Check this Hr value against all rings of this sensor type

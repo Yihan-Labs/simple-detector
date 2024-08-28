@@ -15,6 +15,25 @@ int inline Roundn(double n) {
     return TMath::Nint(n);
 }
 
+double RoundtoN(double i, double n) {
+    // Divide i by n, round to the nearest integer, and then multiply by n
+    return TMath::Nint(i / n) * n;
+}
+
+int intToBinary(int n, int digit) {
+    // Shift the number right by (digit - 1) and then extract the least significant bit
+    return (n >> (digit - 1)) & 1;
+}
+
+int intPow(int x, unsigned int p) {
+  if (p == 0) return 1;
+  if (p == 1) return x;
+  
+  int tmp = intPow(x, p/2);
+  if (p%2 == 0) return tmp * tmp;
+  else return x * tmp * tmp;
+}
+
 // find the n and type of the next ring using current l2 and n.
 std::vector<int> nextCircles(int currentRing, EndcapConfiguration& config) {
     auto& npoly = config.getNpoly();
@@ -53,14 +72,14 @@ std::vector<int> nextCircles(int currentRing, EndcapConfiguration& config) {
     return typenext;
 }
 
-void exploreRingConfigurations(EndcapConfiguration& config, int ringNumber) {
+void exploreRingConfigurations(EndcapConfiguration& config, int ringNumber, double step) {
     auto& L1 = config.getL1();
     auto& L2 = config.getL2();
     auto& npoly = config.getNpoly();
     auto& types = config.getTypes();
 
     if (ringNumber >= config.getNRings()) {
-        if (config.buildRadius()) {
+        if (config.buildRadius(step)) {
             config.printConfiguration();
         }
         return;
@@ -79,7 +98,7 @@ void exploreRingConfigurations(EndcapConfiguration& config, int ringNumber) {
         npoly[ringNumber] = Roundn(n_star);
 
         // Recurse to next ring
-        exploreRingConfigurations(config, ringNumber + 1);
+        exploreRingConfigurations(config, ringNumber + 1, step);
 
         // Restore state for backtracking
         types[ringNumber] = oldType;
@@ -89,34 +108,67 @@ void exploreRingConfigurations(EndcapConfiguration& config, int ringNumber) {
 
 void optimaN(EndcapConfiguration& config) {
     const int N_species = config.getNspecies();
-    const double step = config.getStepLength();
     std::atomic<long> cycles(0);
-    // const int num_threads = 16;
 
     // Define a recursive lambda to handle nested loops
-    std::function<void(int, double, EndcapConfiguration&)> nestedLoops = [&](int depth, double step, EndcapConfiguration& cfg) {
+    std::function<void(int, EndcapConfiguration&, int)> nestedLoops = 
+    [&](int depth, EndcapConfiguration& cfg, int thread_id) {
+        double step = cfg.getStepLength();
         auto& L1 = cfg.getL1();
         auto& L2 = cfg.getL2();
+        double L1offset = 0;
+        double L2offset = step / 2;
+        
+        L2offset += step/2 * intToBinary(thread_id, (depth * 2) - 1);
+        L1offset += step/2 * intToBinary(thread_id, (depth * 2));
+
         // For L2, start from Round(L1) + step
-        for (L2[depth - 1] = Roundn(L1[depth-1]) + step; L2[depth - 1] <= config.getLMax(); L2[depth - 1] += step) {
+         for (L2[depth - 1] = Roundn(L1[depth-1]) + L2offset; L2[depth - 1] <= config.getLMax(); L2[depth - 1] += step) {
             if (depth == N_species - 1) {
-                for (L1[depth] = config.getLMin(); L1[depth] <= L2[depth] - step; L1[depth] += step) {
-                    long current_cycles = ++cycles;
-                    //if (current_cycles % 100000 == 0) {
-                    //    std::cout << current_cycles << std::endl;
-                    //}
-                    exploreRingConfigurations(cfg, 1);
+                for (L1[depth] = config.getLMin() + L1offset; L1[depth] <= L2[depth] - step/2; L1[depth] += step) {
+                    ++cycles;
+                    exploreRingConfigurations(cfg, 1, step / 2);
                 }
             } else {
                 // For intermediate depths, L1 goes from LMin to LMax
-                for (L1[depth] = config.getLMin(); L1[depth] <= config.getLMax(); L1[depth] += step) {
-                    nestedLoops(depth + 1, step, cfg);
+                for (L1[depth] = config.getLMin() + L1offset; L1[depth] <= config.getLMax(); L1[depth] += step) {
+                    nestedLoops(depth + 1, cfg, thread_id);
                 }
             }
         }
     };
 
-    nestedLoops(1, step, config);
+    // Function for each thread to execute
+    auto threadWorker = [&](int thread_id, EndcapConfiguration thread_config) {
+        nestedLoops(1, thread_config, thread_id);
+    };
+
+    // Create and launch threads
+    std::vector<std::thread> threads;
+    int num_threads = intPow(2, (N_species - 1) * 2);
+
+    for (int i = 0; i < num_threads; ++i) {
+        EndcapConfiguration thread_config = config; // Copy the configuration for each thread
+        double steplength = thread_config.getStepLength();
+        thread_config.setStepLength(steplength * 2);
+        threads.emplace_back(threadWorker, i, std::move(thread_config));
+
+        int testing = 1;
+        for(int d = 1; d <= N_species-1 && testing; d++) {
+            double step = thread_config.getStepLength();
+            double L1offset = 0;
+            double L2offset = 0;
+        
+            L2offset += step/2 * intToBinary(i, (d * 2) - 1);
+            L1offset += step/2 * intToBinary(i, (d * 2));
+            printf(" %.1f %.1f ", L2offset, L1offset);
+        } std::cout << std::endl;
+    }
+
+    // Join threads
+    for (auto& thread : threads) {
+        thread.join();
+    }
 
     std::cout << "Total cycles: " << cycles.load() << std::endl;
 }

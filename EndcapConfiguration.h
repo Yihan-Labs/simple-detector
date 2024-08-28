@@ -14,14 +14,14 @@ public:
     EndcapConfiguration(const char* iniFile);
     void loadConfiguration(const char* iniFile);
     void initializeDefaultValues();
-    int buildRadius();
+    int buildRadius(double step);
     void printConfiguration() const;
 
     // Getter methods
     double getRMin() const { return R_min; }
     double getRMax() const { return R_max; }
-    double getLMin() const { return L_min; }
-    double getLMax() const { return L_max; }
+    double getLMin() { return L_min; }
+    double getLMax() { return L_max; }
     double getHrealMin() const { return Hreal_min; }
     double getHrealMax() const { return Hreal_max; }
     double getCosthetaMin() const { return costheta_min; }
@@ -33,6 +33,9 @@ public:
     int getNMax() const { return N_max; }
     int getNRings() const { return N_rings; }
     double getR() const { return R; }
+
+    // Setter method for step_length
+    void setStepLength(double step) { step_length = step; }
 
     std::vector<double>& getL1() { return L1; }
     std::vector<double>& getL2() { return L2; }
