@@ -106,7 +106,7 @@ void EndcapConfiguration::printConfiguration() const {
     // Print npoly and types vectors
     printVector(npoly, "npoly", "%d");
     printVector(types, "types", "%d");
-    
+
     // Print Hr vector
     printVector(Hr, "sensor Height", "%.2f");
 
