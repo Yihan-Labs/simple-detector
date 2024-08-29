@@ -2,7 +2,7 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -Wall -g -O3
+CXXFLAGS = -Wall -g -O3 -march=native
 
 # Root flags and libs
 ROOTFLAGS = $(shell root-config --cflags)
