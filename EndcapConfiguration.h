@@ -10,10 +10,12 @@
 #include <array>
 
 class EndcapConfiguration {
+
+void inline initializeDefaultValues();
+
 public:
     EndcapConfiguration(const char* iniFile);
     void loadConfiguration(const char* iniFile);
-    void initializeDefaultValues();
     int buildRadius(double step);
     void printConfiguration() const;
 

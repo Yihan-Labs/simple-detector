@@ -4,6 +4,8 @@
 #include "PolygonUtils.h"
 #include <TEnv.h>
 #include <TMath.h>
+#include "TFile.h"
+#include "TTree.h"
 #include <iostream>
 #include <functional>
 #include <thread>
@@ -15,17 +17,17 @@ int inline Roundn(double n) {
     return TMath::Nint(n);
 }
 
-double RoundtoN(double i, double n) {
+double inline RoundtoN(double i, double n) {
     // Divide i by n, round to the nearest integer, and then multiply by n
     return TMath::Nint(i / n) * n;
 }
 
-int intToBinary(int n, int digit) {
+int inline intToBinary(int n, int digit) {
     // Shift the number right by (digit - 1) and then extract the least significant bit
     return (n >> (digit - 1)) & 1;
 }
 
-int intPow(int x, unsigned int p) {
+int inline intPow(int x, unsigned int p) {
   if (p == 0) return 1;
   if (p == 1) return x;
   
@@ -111,9 +113,8 @@ void optimaN(EndcapConfiguration& config) {
     std::atomic<long> cycles(0);
 
     // Define a recursive lambda to handle nested loops
-    std::function<void(int, EndcapConfiguration&, int)> nestedLoops = 
-    [&](int depth, EndcapConfiguration& cfg, int thread_id) {
-        double step = cfg.getStepLength();
+    std::function<void(int, EndcapConfiguration&, int, double)> nestedLoops = 
+    [&](int depth, EndcapConfiguration& cfg, int thread_id, double step) {
         auto& L1 = cfg.getL1();
         auto& L2 = cfg.getL2();
         double L1offset = 0;
@@ -132,7 +133,7 @@ void optimaN(EndcapConfiguration& config) {
             } else {
                 // For intermediate depths, L1 goes from LMin to LMax
                 for (L1[depth] = config.getLMin() + L1offset; L1[depth] <= config.getLMax(); L1[depth] += step) {
-                    nestedLoops(depth + 1, cfg, thread_id);
+                    nestedLoops(depth + 1, cfg, thread_id, step);
                 }
             }
         }
@@ -140,7 +141,7 @@ void optimaN(EndcapConfiguration& config) {
 
     // Function for each thread to execute
     auto threadWorker = [&](int thread_id, EndcapConfiguration thread_config) {
-        nestedLoops(1, thread_config, thread_id);
+        nestedLoops(1, thread_config, thread_id, thread_config.getStepLength());
     };
 
     // Create and launch threads
@@ -163,11 +164,7 @@ void optimaN(EndcapConfiguration& config) {
 }
 
 // Main function
-void runOptimization(EndcapConfiguration config) {
-    auto& L1 = config.getL1();
-    auto& L2 = config.getL2();
-
-    std::cout << L1[0] << " " << L2[config.getNspecies() - 1] << std::endl;
+void runOptimization(EndcapConfiguration config, std::vector<EndcapConfiguration>& config_list) {
     
     if (config.getNspecies() >= 3) {
         optimaN(config);
@@ -188,7 +185,15 @@ int main() {
     printf("N_species: %d\n", config.getNspecies());
     printf("N_rings: %d\n", config.getNRings());
     printf("polygon sides: [%d, %d]\n", config.getNMin(), config.getNMax());
+    auto& L1 = config.getL1();
+    auto& L2 = config.getL2();
 
-    runOptimization(config);
+    std::cout << L1[0] << " " << L2[config.getNspecies() - 1] << std::endl;
+
+    TFile *file = new TFile("EndcapConfigurations.root", "RECREATE");
+    TTree *tree = new TTree("EndcapTree", "Tree storing EndcapConfiguration objects");
+
+    std::vector<EndcapConfiguration> config_list;
+    runOptimization(config, config_list);
     return 0;
 }

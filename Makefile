@@ -3,7 +3,7 @@ CXX = g++
 
 # Compiler flags
 CXXFLAGS = -Wall -g -O3 -march=native
-LDFLAGS += -lvdt
+LDFLAGS = -lm
 
 # Root flags and libs
 ROOTFLAGS = $(shell root-config --cflags)
@@ -14,7 +14,7 @@ TARGET = runOptimization
 
 # Source files
 SOURCES = EndcapConfiguration.cpp runOptimization.cpp PolygonUtils.cpp
-SOURCES += PolygonUtils.h EndcapConfiguration.h
+HEADERS = PolygonUtils.h EndcapConfiguration.h
 
 # Object files
 OBJECTS = $(SOURCES:.cpp=.o)
@@ -23,7 +23,7 @@ OBJECTS = $(SOURCES:.cpp=.o)
 all: $(TARGET)
 
 # Link the target executable
-$(TARGET): $(OBJECTS)
+$(TARGET): $(OBJECTS) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o $@ $^ $(ROOTLIBS) $(LDFLAGS)
 
 # Generic rule for compiling .cpp to .o
