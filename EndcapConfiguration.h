@@ -15,6 +15,7 @@ void inline initializeDefaultValues();
 
 public:
     EndcapConfiguration(const char* iniFile);
+    EndcapConfiguration(const EndcapConfiguration& other);
     void loadConfiguration(const char* iniFile);
     int buildRadius(double step);
     void printConfiguration() const;

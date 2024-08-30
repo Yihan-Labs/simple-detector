@@ -39,6 +39,33 @@ void EndcapConfiguration::loadConfiguration(const char* iniFile) {
     initializeDefaultValues();
 }
 
+// Copy constructor
+EndcapConfiguration::EndcapConfiguration(const EndcapConfiguration& other) {
+    R_max = other.R_max;
+    R_min = other.R_min;
+    L_min = other.L_min;
+    L_max = other.L_max;
+    Hreal_max = other.Hreal_max;
+    Hreal_min = other.Hreal_min;
+    costheta_max = other.costheta_max;
+    costheta_min = other.costheta_min;
+    step_length = other.step_length;
+    Tolerance = other.Tolerance;
+    N_species = other.N_species;
+    N_min = other.N_min;
+    N_max = other.N_max;
+    N_rings = other.N_rings;
+    R = other.R;
+
+    // Copy the vectors (deep copy)
+    L1 = other.L1;
+    L2 = other.L2;
+    Hr = other.Hr;
+    npoly = other.npoly;
+    types = other.types;
+    radius = other.radius;
+}
+
 void EndcapConfiguration::initializeDefaultValues() {
     L1[0] = 2 * R_min * TMath::Sin(TMath::Pi() / N_min);
     L2[N_species - 1] = 2 * R_max * TMath::Tan(TMath::Pi() / N_max);

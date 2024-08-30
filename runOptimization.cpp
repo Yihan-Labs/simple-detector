@@ -4,8 +4,6 @@
 #include "PolygonUtils.h"
 #include <TEnv.h>
 #include <TMath.h>
-#include "TFile.h"
-#include "TTree.h"
 #include <iostream>
 #include <functional>
 #include <thread>
@@ -30,9 +28,10 @@ int inline intToBinary(int n, int digit) {
 int inline intPow(int x, unsigned int p) {
   if (p == 0) return 1;
   if (p == 1) return x;
+  if (p == 2) return x * x;
   
-  int tmp = intPow(x, p/2);
-  if (p%2 == 0) return tmp * tmp;
+  int tmp = intPow(x, p / 2);
+  if (p % 2 == 0) return tmp * tmp;
   else return x * tmp * tmp;
 }
 
@@ -74,7 +73,7 @@ std::vector<int> nextCircles(int currentRing, EndcapConfiguration& config) {
     return typenext;
 }
 
-void exploreRingConfigurations(EndcapConfiguration& config, int ringNumber, double step) {
+void exploreRingConfigurations(EndcapConfiguration& config, std::vector<EndcapConfiguration>& config_list, int ringNumber, double step) {
     auto& L1 = config.getL1();
     auto& L2 = config.getL2();
     auto& npoly = config.getNpoly();
@@ -82,7 +81,9 @@ void exploreRingConfigurations(EndcapConfiguration& config, int ringNumber, doub
 
     if (ringNumber >= config.getNRings()) {
         if (config.buildRadius(step)) {
-            config.printConfiguration();
+            //config.printConfiguration();
+            EndcapConfiguration vconfig = config;
+            config_list.push_back(std::move(vconfig));
         }
         return;
     }
@@ -100,7 +101,7 @@ void exploreRingConfigurations(EndcapConfiguration& config, int ringNumber, doub
         npoly[ringNumber] = Roundn(n_star);
 
         // Recurse to next ring
-        exploreRingConfigurations(config, ringNumber + 1, step);
+        exploreRingConfigurations(config, config_list, ringNumber + 1, step);
 
         // Restore state for backtracking
         types[ringNumber] = oldType;
@@ -108,13 +109,13 @@ void exploreRingConfigurations(EndcapConfiguration& config, int ringNumber, doub
     }
 }
 
-void optimaN(EndcapConfiguration& config) {
+void optimaN(EndcapConfiguration& config, std::vector<EndcapConfiguration>& config_list) {
     const int N_species = config.getNspecies();
     std::atomic<long> cycles(0);
 
     // Define a recursive lambda to handle nested loops
-    std::function<void(int, EndcapConfiguration&, int, double)> nestedLoops = 
-    [&](int depth, EndcapConfiguration& cfg, int thread_id, double step) {
+    std::function<void(int, EndcapConfiguration&, std::vector<EndcapConfiguration>&, int, double)> nestedLoops =
+    [&](int depth, EndcapConfiguration& cfg, std::vector<EndcapConfiguration>& cfg_list, int thread_id, double step) {
         auto& L1 = cfg.getL1();
         auto& L2 = cfg.getL2();
         double L1offset = 0;
@@ -128,36 +129,42 @@ void optimaN(EndcapConfiguration& config) {
             if (depth == N_species - 1) {
                 for (L1[depth] = config.getLMin() + L1offset; L1[depth] <= L2[depth] - step/2; L1[depth] += step) {
                     ++cycles;
-                    exploreRingConfigurations(cfg, 1, step / 2);
+                    exploreRingConfigurations(cfg, cfg_list, 1, step / 2);
                 }
             } else {
                 // For intermediate depths, L1 goes from LMin to LMax
                 for (L1[depth] = config.getLMin() + L1offset; L1[depth] <= config.getLMax(); L1[depth] += step) {
-                    nestedLoops(depth + 1, cfg, thread_id, step);
+                    nestedLoops(depth + 1, cfg, cfg_list, thread_id, step);
                 }
             }
         }
     };
 
     // Function for each thread to execute
-    auto threadWorker = [&](int thread_id, EndcapConfiguration thread_config) {
-        nestedLoops(1, thread_config, thread_id, thread_config.getStepLength());
+    auto threadWorker = [&](int thread_id, EndcapConfiguration thread_config, std::vector<EndcapConfiguration>& thread_config_list) {
+        nestedLoops(1, thread_config, thread_config_list, thread_id, thread_config.getStepLength());
     };
 
     // Create and launch threads
-    std::vector<std::thread> threads;
     int num_threads = intPow(2, (N_species - 1) * 2);
+    std::vector<std::thread> threads;
+    std::vector<std::vector<EndcapConfiguration>> thread_config_lists(num_threads);  // List for each thread
 
     for (int i = 0; i < num_threads; ++i) {
         EndcapConfiguration thread_config = config; // Copy the configuration for each thread
         double steplength = thread_config.getStepLength();
         thread_config.setStepLength(steplength * 2);
-        threads.emplace_back(threadWorker, i, std::move(thread_config));
+        threads.emplace_back(threadWorker, i, std::move(thread_config), std::ref(thread_config_lists[i]));
     }
 
     // Join threads
     for (auto& thread : threads) {
         thread.join();
+    }
+
+    // Combine all thread-specific config lists into the main config_list
+    for (const auto& thread_list : thread_config_lists) {
+        config_list.insert(config_list.end(), thread_list.begin(), thread_list.end());
     }
 
     std::cout << "Total cycles: " << cycles.load() << std::endl;
@@ -167,7 +174,7 @@ void optimaN(EndcapConfiguration& config) {
 void runOptimization(EndcapConfiguration config, std::vector<EndcapConfiguration>& config_list) {
     
     if (config.getNspecies() >= 3) {
-        optimaN(config);
+        optimaN(config , config_list);
     } else {
         std::cerr << "Unsupported number of species: " << config.getNspecies() << std::endl;
     }
@@ -190,10 +197,11 @@ int main() {
 
     std::cout << L1[0] << " " << L2[config.getNspecies() - 1] << std::endl;
 
-    TFile *file = new TFile("EndcapConfigurations.root", "RECREATE");
-    TTree *tree = new TTree("EndcapTree", "Tree storing EndcapConfiguration objects");
-
     std::vector<EndcapConfiguration> config_list;
     runOptimization(config, config_list);
+
+    for(auto& cfg : config_list) {
+        cfg.printConfiguration();
+    }
     return 0;
 }
