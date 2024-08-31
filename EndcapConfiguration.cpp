@@ -144,8 +144,8 @@ void EndcapConfiguration::printConfiguration() const {
         double tiltAngle = (ringHeight / sensorHeight);
 
         printf("Ring %d", i + 1);
-        printf("  Radius: [%.2f %.2f]", radius[i][0], radius[i][1]);
-        printf("  ring height: %.2f", ringHeight);
-        printf("\tcostheta: %.3f \n", tiltAngle);
+        printf("  Radius: [%.3f %.3f]", radius[i][0], radius[i][1]);
+        printf("  ring height: %.3f", ringHeight);
+        printf("\tcostheta: %.5f \n", tiltAngle);
     }
 }
