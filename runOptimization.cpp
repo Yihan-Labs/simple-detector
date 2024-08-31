@@ -11,6 +11,8 @@
 #include <atomic>
 #include <array>
 
+std::atomic<long> cycles(0);
+
 int inline Roundn(double n) {
     return TMath::Nint(n);
 }
@@ -112,7 +114,6 @@ void exploreRingConfigurations(EndcapConfiguration& config, std::vector<EndcapCo
 
 void optimaN(EndcapConfiguration& config, std::vector<EndcapConfiguration>& config_list) {
     const int N_species = config.getNspecies();
-    std::atomic<long> cycles(0);
 
     // Define a recursive lambda to handle nested loops
     std::function<void(int, EndcapConfiguration&, std::vector<EndcapConfiguration>&, int, double)> nestedLoops =
@@ -167,8 +168,6 @@ void optimaN(EndcapConfiguration& config, std::vector<EndcapConfiguration>& conf
     for (const auto& thread_list : thread_config_lists) {
         config_list.insert(config_list.end(), thread_list.begin(), thread_list.end());
     }
-
-    std::cout << "Total cycles: " << cycles.load() << std::endl;
 }
 
 // Main function
@@ -182,8 +181,15 @@ void runOptimization(EndcapConfiguration config, std::vector<EndcapConfiguration
 }
 
 // Entry point for ROOT
-int main() {
-    EndcapConfiguration config("optimize.ini");
+int main(int argc,char**argv) {
+    TString config_file;
+    if(argc>=2){
+        config_file = argv[1];
+    } else {
+        config_file = "optimize.ini";
+    }
+
+    EndcapConfiguration config(config_file);
 
     // Output the read parameters
     printf("Tolerance: %.2e\n", config.getTolerance());
@@ -204,5 +210,7 @@ int main() {
     for(auto& cfg : config_list) {
         cfg.printConfiguration();
     }
+
+    std::cout << "Total cycles: " << cycles.load() << std::endl;
     return 0;
 }
