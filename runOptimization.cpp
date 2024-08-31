@@ -62,8 +62,9 @@ std::vector<int> nextCircles(int currentRing, EndcapConfiguration& config) {
     }
 
     for (int i = 0; i < config.getNspecies(); i++) {
-        double n_star = PolygonUtils::PolygonSides(r, L1[i]);
-        double r_next = PolygonUtils::CircumscribedRadius(L1[i], Roundn(n_star));
+        int n_star = Roundn(PolygonUtils::PolygonSides(r, L1[i]));
+        if(n_star % 4 != 0) {continue;}
+        double r_next = PolygonUtils::CircumscribedRadius(L1[i], n_star);
         double delta = TMath::Abs(r_next - r) / r;
         if (delta <= config.getTolerance()) {
             typenext.push_back(i);
