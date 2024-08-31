@@ -2,7 +2,7 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -Wall -g -O3
+CXXFLAGS = -Wall -g -O3 -std=c++20
 LDFLAGS = -lm -pthread
 
 # Root flags and libs
