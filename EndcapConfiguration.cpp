@@ -5,12 +5,11 @@
 #include <TMath.h>
 #include <iostream>
 
-EndcapConfiguration::EndcapConfiguration(const char* iniFile) {
-    loadConfiguration(iniFile);
+EndcapConfiguration::EndcapConfiguration(TEnv& config) {
+    loadConfiguration(config);
 }
 
-void EndcapConfiguration::loadConfiguration(const char* iniFile) {
-    TEnv config(iniFile);
+void EndcapConfiguration::loadConfiguration(TEnv& config) {
     R_min = config.GetValue("R_min", 414.0);
     R_max = config.GetValue("R_max", 690.0);
     L_min = config.GetValue("L_min", 25.0);
@@ -19,7 +18,6 @@ void EndcapConfiguration::loadConfiguration(const char* iniFile) {
     Hreal_max = config.GetValue("Hreal_max", 145.0);
     costheta_min = config.GetValue("costheta_min", 0.7);
     costheta_max = config.GetValue("costheta_max", 1.0);
-    step_length = config.GetValue("step_length", 0.5);
     Gap_tolerance = config.GetValue("Gap_tolerance", 1e-3);
     Overlap_max_mm = config.GetValue("Overlap_max_mm", 2);
     N_species = config.GetValue("N_species", 3);
@@ -49,7 +47,6 @@ EndcapConfiguration::EndcapConfiguration(const EndcapConfiguration& other) {
     Hreal_min = other.Hreal_min;
     costheta_max = other.costheta_max;
     costheta_min = other.costheta_min;
-    step_length = other.step_length;
     Gap_tolerance = other.Gap_tolerance;
     Overlap_max_mm = other.Overlap_max_mm;
     N_species = other.N_species;
@@ -74,6 +71,14 @@ void EndcapConfiguration::initializeDefaultValues() {
     npoly[N_rings - 1] = N_max;
     types[0] = 0;
     types[N_rings - 1] = N_species - 1;
+}
+
+double EndcapConfiguration::getInnerRadius(int ringn) {
+    return CircumscribedRadius(L1[types[ringn]], npoly[ringn]);
+}
+
+double EndcapConfiguration::getOuterRadius(int ringn) {
+    return InscribedRadius(L2[types[ringn]], npoly[ringn]);
 }
 
 // buildRadius returns 1 if build success.

@@ -43,7 +43,6 @@ int inline intPow(int x, unsigned int p) {
 
 // find the n and type of the next ring using current l2 and n.
 std::vector<int> nextCircles(int currentRing, EndcapConfiguration& config) {
-    auto& npoly = config.getNpoly();
     auto& L1 = config.getL1();
     auto& L2 = config.getL2();
     auto& types = config.getTypes();
@@ -54,12 +53,12 @@ std::vector<int> nextCircles(int currentRing, EndcapConfiguration& config) {
         return typenext;
     }
 
-    double r = EndcapConfiguration::InscribedRadius(L2[types[currentRing - 1]], npoly[currentRing - 1]);
+    double r = config.getOuterRadius(currentRing - 1);
 
     // check if the next ring is the outer ring
     if (currentRing + 1 == config.getNRings()) {
         int i = types[currentRing];
-        auto r_next = EndcapConfiguration::CircumscribedRadius(L1[i], npoly[currentRing]);
+        auto r_next = config.getInnerRadius(currentRing);
         auto r_maxn = r * (1 + config.getGapTolerance());
         if (r_next >= r - config.getOverlapMax() && r_next <= r_maxn) {
             typenext.push_back(i);
@@ -131,7 +130,7 @@ void exploreRingConfigurations(EndcapConfiguration& config, std::vector<EndcapCo
     }
 }
 
-void optimaN(EndcapConfiguration& config, std::vector<EndcapConfiguration>& config_list) {
+void optimaN(EndcapConfiguration& config, std::vector<EndcapConfiguration>& config_list, double step_length) {
     const int N_species = config.getNspecies();
 
     // Define a recursive lambda to handle nested loops
@@ -162,8 +161,8 @@ void optimaN(EndcapConfiguration& config, std::vector<EndcapConfiguration>& conf
     };
 
     // Function for each thread to execute
-    auto threadWorker = [&](int thread_id, EndcapConfiguration thread_config, std::vector<EndcapConfiguration>& thread_config_list) {
-        nestedLoops(1, thread_config, thread_config_list, thread_id, thread_config.getStepLength());
+    auto threadWorker = [&](int thread_id, EndcapConfiguration thread_config, std::vector<EndcapConfiguration>& thread_config_list, double step_length) {
+        nestedLoops(1, thread_config, thread_config_list, thread_id, step_length);
     };
 
     // Create and launch threads
@@ -173,9 +172,8 @@ void optimaN(EndcapConfiguration& config, std::vector<EndcapConfiguration>& conf
 
     for (int i = 0; i < num_threads; ++i) {
         EndcapConfiguration thread_config = config; // Copy the configuration for each thread
-        double steplength = thread_config.getStepLength();
-        thread_config.setStepLength(steplength * 2);
-        threads.emplace_back(threadWorker, i, std::move(thread_config), std::ref(thread_config_lists[i]));
+        auto stepby2 = step_length * 2;
+        threads.emplace_back(threadWorker, i, std::move(thread_config), std::ref(thread_config_lists[i]), stepby2);
     }
 
     // Join threads
@@ -190,10 +188,10 @@ void optimaN(EndcapConfiguration& config, std::vector<EndcapConfiguration>& conf
 }
 
 // Main function
-void runOptimization(EndcapConfiguration config, std::vector<EndcapConfiguration>& config_list) {
+void runOptimization(EndcapConfiguration config, std::vector<EndcapConfiguration>& config_list, double step_length) {
     
     if (config.getNspecies() >= 3) {
-        optimaN(config , config_list);
+        optimaN(config , config_list, step_length);
     } else {
         std::cerr << "Unsupported number of species: " << config.getNspecies() << std::endl;
     }
@@ -201,16 +199,18 @@ void runOptimization(EndcapConfiguration config, std::vector<EndcapConfiguration
 
 // Entry point for ROOT
 int main(int argc,char**argv) {
-    TString config_file;
+    TString filename;
     if(argc>=2){
-        config_file = argv[1];
+        filename = argv[1];
     } else {
-        config_file = "optimize.ini";
+        filename = "optimize.ini";
     }
+    TEnv configfile(filename);
 
-    EndcapConfiguration config(config_file);
+    EndcapConfiguration config(configfile);
 
     // Output the read parameters
+    double step_length = configfile.GetValue("step_length", 0.5);
     printf("Tolerance: %.2e\n", config.getGapTolerance());
     printf("Radius min, max: = [%.2f, %.2f]\n", config.getRMin(), config.getRMax());
     printf("Hreal: [%.2f, %.2f]\n", config.getHrealMin(), config.getHrealMax());
@@ -224,7 +224,7 @@ int main(int argc,char**argv) {
     std::cout << L1[0] << " " << L2[config.getNspecies() - 1] << std::endl;
 
     std::vector<EndcapConfiguration> config_list;
-    runOptimization(config, config_list);
+    runOptimization(config, config_list, step_length);
 
     for(auto& cfg : config_list) {
         auto np = cfg.getNpoly();

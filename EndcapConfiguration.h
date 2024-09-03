@@ -14,9 +14,9 @@ class EndcapConfiguration {
 void inline initializeDefaultValues();
 
 public:
-    EndcapConfiguration(const char* iniFile);
+    EndcapConfiguration(TEnv& config);
     EndcapConfiguration(const EndcapConfiguration& other);
-    void loadConfiguration(const char* iniFile);
+    void loadConfiguration(TEnv& config);
     int buildRadius(double step);
     void printConfiguration() const;
 
@@ -29,7 +29,6 @@ public:
     double getHrealMax() const { return Hreal_max; }
     double getCosthetaMin() const { return costheta_min; }
     double getCosthetaMax() const { return costheta_max; }
-    double getStepLength() const { return step_length; }
     double getGapTolerance() const { return Gap_tolerance; }
     double getOverlapMax() const { return Overlap_max_mm; }
     int getNspecies() const { return N_species; }
@@ -37,9 +36,20 @@ public:
     int getNMax() const { return N_max; }
     int getNRings() const { return N_rings; }
     double getR() const { return R; }
+    double getInnerRadius(int ring_number);
+    double getOuterRadius(int ring_number);
 
     // Setter method for step_length
-    void setStepLength(double step) { step_length = step; }
+    void setRMin(double min) { R_min = min; }
+    void setRMax(double max) { R_max = max; }
+    void setLMin(double min) { L_min = min; }
+    void setLMax(double max) { L_max = max; }
+    void setHrealMin(double min) { Hreal_min = min; }
+    void setHrealMax(double max) { Hreal_max = max; }
+    void setCosthetaMin(double min) { costheta_min = min; }
+    void setCosthetaMax(double max) { costheta_max = max; }
+    void setGapTolerance(double tol) { Gap_tolerance = tol; }
+    void setOverlapMax(double max) { Overlap_max_mm = max; }
 
     double static InscribedRadius(double L, int n);
     double static CircumscribedRadius(double L, int n);
@@ -56,7 +66,7 @@ private:
     double R_max, R_min, L_min, L_max;
     double Hreal_max, Hreal_min;
     double costheta_max, costheta_min;
-    double step_length, Gap_tolerance, Overlap_max_mm;
+    double Gap_tolerance, Overlap_max_mm;
     int N_species, N_min, N_max, N_rings;
     double R;
 
