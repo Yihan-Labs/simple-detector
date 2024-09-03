@@ -6,7 +6,7 @@ double PolygonUtils::InscribedRadius(double L, int n) {
         std::cerr << "Error: A polygon must have at least 3 sides." << std::endl;
         return -9999.5;
     }
-    return L / (2 * TMath::Tan(M_PI / n));
+    return L / (2 * TMath::Tan(TMath::Pi() / n));
 }
 
 // Circumscribed radius of a regular polygon
@@ -15,7 +15,7 @@ double PolygonUtils::CircumscribedRadius(double L, int n) {
         std::cerr << "Error: A polygon must have at least 3 sides." << std::endl;
         return -9999.5;
     }
-    return L / (2 * TMath::Sin(M_PI / n));
+    return L / (2 * TMath::Sin(TMath::Pi() / n));
 }
 
 // Number of sides of a regular polygon
@@ -25,7 +25,7 @@ float PolygonUtils::PolygonSides(double r, double L) {
         return -9999.5;
     }
     float sin_term = L / (2 * r);
-    return M_PI / TMath::ASin(sin_term);
+    return TMath::Pi() / TMath::ASin(sin_term);
 }
 
 double PolygonUtils::H_Max(double L1, double L2, double R) {
