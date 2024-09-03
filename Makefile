@@ -2,7 +2,7 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -Wall -g -O3 -std=c++20
+CXXFLAGS = -Wall -g -O3
 LDFLAGS = -lm -pthread
 
 # Root flags and libs
@@ -13,8 +13,8 @@ ROOTLIBS = $(shell root-config --libs)
 TARGET = runOptimization
 
 # Source files
-SOURCES = EndcapConfiguration.cpp runOptimization.cpp PolygonUtils.cpp
-HEADERS = PolygonUtils.h EndcapConfiguration.h
+SOURCES = EndcapConfiguration.cpp runOptimization.cpp
+HEADERS = EndcapConfiguration.h
 
 # Object files
 OBJECTS = $(SOURCES:.cpp=.o)

@@ -1,7 +1,6 @@
 // runOptimization.C
 
 #include "EndcapConfiguration.h"
-#include "PolygonUtils.h"
 #include <TEnv.h>
 #include <TMath.h>
 #include <iostream>
@@ -18,6 +17,11 @@ int inline Roundn(double n) {
 }
 
 double inline RoundtoN(double i, double n) {
+    // Divide i by n, round to the nearest integer, and then multiply by n
+    return TMath::Nint(i / n) * n;
+}
+
+int inline RoundtoN(double i, int n) {
     // Divide i by n, round to the nearest integer, and then multiply by n
     return TMath::Nint(i / n) * n;
 }
@@ -50,25 +54,40 @@ std::vector<int> nextCircles(int currentRing, EndcapConfiguration& config) {
         return typenext;
     }
 
-    double r = PolygonUtils::InscribedRadius(L2[types[currentRing - 1]], npoly[currentRing - 1]);
+    double r = EndcapConfiguration::InscribedRadius(L2[types[currentRing - 1]], npoly[currentRing - 1]);
 
     // check if the next ring is the outer ring
     if (currentRing + 1 == config.getNRings()) {
         int i = types[currentRing];
-        auto r_next = PolygonUtils::CircumscribedRadius(L1[i], npoly[currentRing]);
-        auto delta = TMath::Abs(r_next - r) / r;
-        if (delta <= config.getTolerance()) {
+        auto r_next = EndcapConfiguration::CircumscribedRadius(L1[i], npoly[currentRing]);
+        auto r_maxn = r * (1 + config.getGapTolerance());
+        if (r_next >= r - config.getOverlapMax() && r_next <= r_maxn) {
             typenext.push_back(i);
         }
         return typenext;
     }
 
     for (int i = 0; i < config.getNspecies(); i++) {
-        int n_star = Roundn(PolygonUtils::PolygonSides(r, L1[i]));
-        if(n_star % 4 != 0) {continue;}
-        double r_next = PolygonUtils::CircumscribedRadius(L1[i], n_star);
-        double delta = TMath::Abs(r_next - r) / r;
-        if (delta <= config.getTolerance()) {
+        double polygonSides = EndcapConfiguration::PolygonSides(r, L1[i]);
+        int n_star = static_cast<int>(std::floor(polygonSides));  // floor of PolygonSides
+        bool found = false;
+
+        // Check both floor value and floor + 1 for divisibility by 8
+        for (int delta = 0; delta <= 1; ++delta) {
+            int adjusted_n_star = n_star + delta;
+            
+            // Check if the adjusted n_star is divisible by 8
+            if (adjusted_n_star % 8 == 0) {
+                n_star = adjusted_n_star;
+                found = true;
+                break;
+            }
+        }
+        if (!found) { continue; }
+        auto r_next = EndcapConfiguration::CircumscribedRadius(L1[i], n_star);
+        auto r_maxn = r + config.getOverlapMax();
+        auto r_minn = r * (1 - config.getGapTolerance());
+        if (r_next >= r_minn && r_next <= r_maxn && r_next <= config.getRMax()) {
             typenext.push_back(i);
             // We're not setting types and npoly here anymore, as we're collecting all possibilities
         }
@@ -83,9 +102,9 @@ void exploreRingConfigurations(EndcapConfiguration& config, std::vector<EndcapCo
     auto& types = config.getTypes();
 
     if (ringNumber >= config.getNRings()) {
-        if (config.buildRadius(step)) {
+        EndcapConfiguration vconfig = config;
+        if (vconfig.buildRadius(step)) {
             //config.printConfiguration();
-            EndcapConfiguration vconfig = config;
             config_list.push_back(std::move(vconfig));
         }
         return;
@@ -99,9 +118,9 @@ void exploreRingConfigurations(EndcapConfiguration& config, std::vector<EndcapCo
 
         // Set new type and npoly
         types[ringNumber] = type;
-        double r = PolygonUtils::InscribedRadius(L2[types[ringNumber - 1]], npoly[ringNumber - 1]);
-        double n_star = PolygonUtils::PolygonSides(r, L1[type]);
-        npoly[ringNumber] = Roundn(n_star);
+        double r = EndcapConfiguration::InscribedRadius(L2[types[ringNumber - 1]], npoly[ringNumber - 1]);
+        double n_star = EndcapConfiguration::PolygonSides(r, L1[type]);
+        npoly[ringNumber] = RoundtoN(n_star, 8);
 
         // Recurse to next ring
         exploreRingConfigurations(config, config_list, ringNumber + 1, step);
@@ -192,7 +211,7 @@ int main(int argc,char**argv) {
     EndcapConfiguration config(config_file);
 
     // Output the read parameters
-    printf("Tolerance: %.2e\n", config.getTolerance());
+    printf("Tolerance: %.2e\n", config.getGapTolerance());
     printf("Radius min, max: = [%.2f, %.2f]\n", config.getRMin(), config.getRMax());
     printf("Hreal: [%.2f, %.2f]\n", config.getHrealMin(), config.getHrealMax());
     printf("costheta: [%.2f, %.2f]\n", config.getCosthetaMin(), config.getCosthetaMax());
@@ -208,7 +227,9 @@ int main(int argc,char**argv) {
     runOptimization(config, config_list);
 
     for(auto& cfg : config_list) {
-        cfg.printConfiguration();
+        auto np = cfg.getNpoly();
+        if (abs(np[1] - np[2]) <= 1) {cfg.printConfiguration();}
+        //cfg.printConfiguration();
     }
 
     std::cout << "Total cycles: " << cycles.load() << std::endl;

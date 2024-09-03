@@ -1,7 +1,6 @@
 // EndcapConfiguration.C
 
 #include "EndcapConfiguration.h"
-#include "PolygonUtils.h"
 #include <TEnv.h>
 #include <TMath.h>
 #include <iostream>
@@ -21,7 +20,8 @@ void EndcapConfiguration::loadConfiguration(const char* iniFile) {
     costheta_min = config.GetValue("costheta_min", 0.7);
     costheta_max = config.GetValue("costheta_max", 1.0);
     step_length = config.GetValue("step_length", 0.5);
-    Tolerance = config.GetValue("Tolerance", 1e-3);
+    Gap_tolerance = config.GetValue("Gap_tolerance", 1e-3);
+    Overlap_max_mm = config.GetValue("Overlap_max_mm", 2);
     N_species = config.GetValue("N_species", 3);
     N_rings = config.GetValue("N_rings", 3);
     N_min = config.GetValue("N_min", 48);
@@ -34,7 +34,7 @@ void EndcapConfiguration::loadConfiguration(const char* iniFile) {
     types.resize(N_rings, 0);
     radius.resize(N_rings, std::array<double, 2>{0.0, 0.0});
 
-    R = 105.0;
+    R = 101.5;
 
     initializeDefaultValues();
 }
@@ -50,7 +50,8 @@ EndcapConfiguration::EndcapConfiguration(const EndcapConfiguration& other) {
     costheta_max = other.costheta_max;
     costheta_min = other.costheta_min;
     step_length = other.step_length;
-    Tolerance = other.Tolerance;
+    Gap_tolerance = other.Gap_tolerance;
+    Overlap_max_mm = other.Overlap_max_mm;
     N_species = other.N_species;
     N_min = other.N_min;
     N_max = other.N_max;
@@ -79,8 +80,8 @@ void EndcapConfiguration::initializeDefaultValues() {
 int EndcapConfiguration::buildRadius(double step) {
     // First, calculate all radii
     for (int i = 0; i < N_rings; i++) {
-        radius[i][0] = PolygonUtils::CircumscribedRadius(L1[types[i]], npoly[i]);
-        radius[i][1] = PolygonUtils::InscribedRadius(L2[types[i]], npoly[i]);
+        radius[i][0] = CircumscribedRadius(L1[types[i]], npoly[i]);
+        radius[i][1] = InscribedRadius(L2[types[i]], npoly[i]);
     }
 
     // Now, determine Hr for each sensor type
@@ -145,7 +146,35 @@ void EndcapConfiguration::printConfiguration() const {
 
         printf("Ring %d", i + 1);
         printf("  Radius: [%.3f %.3f]", radius[i][0], radius[i][1]);
-        printf("  ring height: %.3f", ringHeight);
+        printf("\tring height: %.3f", ringHeight);
         printf("\tcostheta: %.5f \n", tiltAngle);
     }
+}
+
+// Inscribed radius of a regular polygon
+double EndcapConfiguration::InscribedRadius(double L, int n) {
+    if (n <= 2) {
+        std::cerr << "Error: A polygon must have at least 3 sides." << std::endl;
+        return -9999.5;
+    }
+    return L / (2 * TMath::Tan(TMath::Pi() / n));
+}
+
+// Circumscribed radius of a regular polygon
+double EndcapConfiguration::CircumscribedRadius(double L, int n) {
+    if (n <= 2) {
+        std::cerr << "Error: A polygon must have at least 3 sides." << std::endl;
+        return -9999.5;
+    }
+    return L / (2 * TMath::Sin(TMath::Pi() / n));
+}
+
+// Number of sides of a regular polygon
+float EndcapConfiguration::PolygonSides(double r, double L) {
+    if (L >= 2 * r) {
+        std::cerr << "Error: The side length must be smaller than the diameter (2 * r)." << std::endl;
+        return -9999.5;
+    }
+    float sin_term = L / (2 * r);
+    return TMath::Pi() / TMath::ASin(sin_term);
 }
